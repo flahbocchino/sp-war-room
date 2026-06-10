@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SP War Room — Mapa Vivo de Ameaças</title>
+  <meta name="description" content="Simulador de análise de inteligência operacional. Você é a analista de plantão. Triagear, investigar, priorizar e produzir o briefing antes que o tempo acabe." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --bg-card: #161b22;
+      --bg-secondary: #1c2128;
+      --bg-hover: #21262d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-tertiary: #484f58;
+      --border: #30363d;
+      --border-hover: #484f58;
+      --green: #3fb950;
+      --green-bg: #0d2819;
+      --green-text: #3fb950;
+      --yellow: #d29922;
+      --yellow-bg: #2a1f07;
+      --yellow-text: #e3b341;
+      --red: #f85149;
+      --red-bg: #2d0f0e;
+      --red-text: #ff7b72;
+      --blue: #388bfd;
+      --blue-bg: #0c1f3d;
+      --blue-text: #79c0ff;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Space Grotesk', -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .app {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      position: relative;
+      min-height: 100vh;
+    }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+
+    /* LANG TOGGLE */
+    .lang-toggle {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.25rem;
+      display: flex;
+      gap: 4px;
+      z-index: 100;
+    }
+    .lang-btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .lang-btn.active {
+      background: var(--text-primary);
+      color: var(--bg);
+      border-color: transparent;
+    }
+
+    /* TYPOGRAPHY */
+    .eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    h1 { font-size: 32px; font-weight: 500; line-height: 1.15; margin-bottom: 0.75rem; }
+    h2 { font-size: 22px; font-weight: 500; margin-bottom: 0.5rem; }
+    .subtitle { font-size: 15px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 2rem; }
+
+    /* CARDS */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+
+    /* TAGS */
+    .tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+      display: inline-block;
+      white-space: nowrap;
+    }
+    .tag-confirmed { background: var(--green-bg); color: var(--green-text); border: 1px solid rgba(63,185,80,0.2); }
+    .tag-indicated { background: var(--yellow-bg); color: var(--yellow-text); border: 1px solid rgba(210,153,34,0.2); }
+    .tag-unverified { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+    .tag-disinfo { background: var(--red-bg); color: var(--red-text); border: 1px solid rgba(248,81,73,0.2); }
+
+    /* BUTTONS */
+    .btn-primary {
+      background: var(--text-primary);
+      color: var(--bg);
+      border: none;
+      padding: 10px 24px;
+      border-radius: var(--radius-md);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 10px 24px;
+      border-radius: var(--radius-md);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-secondary:hover { background: var(--bg-hover); }
+    .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    /* LEVEL GRID */
+    .level-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 2rem;
+    }
+    .level-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s, background 0.15s;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--text-primary);
+    }
+    .level-btn:hover { border-color: var(--border-hover); background: var(--bg-hover); transform: translateY(-2px); }
+    .level-btn:active { transform: scale(0.98); }
+    .level-btn.danger { border-color: rgba(248,81,73,0.3); }
+    .level-btn.danger:hover { border-color: var(--red); background: var(--red-bg); }
+    .level-icon { font-size: 24px; }
+    .level-name { font-size: 15px; font-weight: 500; }
+    .level-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+    .level-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .level-pill {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--text-tertiary);
+    }
+
+    /* GAME UI */
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .game-meta { display: flex; align-items: center; gap: 12px; }
+    .timer { font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--text-secondary); }
+    .timer.urgent { color: var(--red-text); }
+    .score-display { font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--green-text); }
+
+    .phase-bar { display: flex; gap: 5px; margin-bottom: 10px; }
+    .phase-dot { height: 3px; flex: 1; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+    .phase-dot.done { background: var(--text-primary); }
+    .phase-dot.current { background: var(--text-secondary); }
+
+    .timer-track { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 1.5rem; }
+    .timer-fill { height: 100%; background: var(--text-secondary); transition: width 1s linear, background 0.3s; }
+    .timer-fill.urgent { background: var(--red); }
+
+    /* INCIDENT CARDS */
+    .incident-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.875rem 1rem;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .incident-card.investigate { border-color: rgba(56,139,253,0.4); background: var(--blue-bg); }
+    .incident-card.escalated { border-color: rgba(248,81,73,0.4); }
+    .incident-card.dismissed { opacity: 0.35; }
+    .incident-card.selected { border-color: rgba(56,139,253,0.5); background: var(--blue-bg); }
+    .inc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; gap: 8px; }
+    .inc-title { font-weight: 500; font-size: 14px; }
+    .inc-time { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-tertiary); margin-left: 6px; }
+    .inc-meta { font-size: 12px; color: var(--text-tertiary); margin-bottom: 5px; }
+    .inc-detail { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 10px; }
+    .action-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .act-btn {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: 'Space Grotesk', sans-serif;
+      transition: all 0.1s;
+    }
+    .act-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .act-btn.escalate { border-color: rgba(248,81,73,0.3); color: var(--red-text); }
+    .act-btn.escalate:hover { background: var(--red-bg); }
+    .act-btn.investigate { border-color: rgba(56,139,253,0.3); color: var(--blue-text); }
+    .act-btn.investigate:hover { background: var(--blue-bg); }
+    .act-btn.include { border-color: rgba(63,185,80,0.3); color: var(--green-text); }
+    .act-btn.include:hover { background: var(--green-bg); }
+    .act-btn.warning { border-color: rgba(210,153,34,0.3); color: var(--yellow-text); }
+    .act-btn.warning:hover { background: var(--yellow-bg); }
+
+    .phase-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; }
+    .phase-count { font-size: 12px; color: var(--text-tertiary); font-family: 'IBM Plex Mono', monospace; }
+
+    /* BRIEFING */
+    .briefing-area {
+      width: 100%;
+      min-height: 120px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      resize: vertical;
+      line-height: 1.65;
+    }
+    .briefing-area:focus { outline: none; border-color: var(--blue); }
+
+    /* RESULT */
+    .result-hero { text-align: center; padding: 1.5rem 0 2rem; }
+    .score-ring {
+      width: 90px; height: 90px; border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; margin: 0 auto 1.25rem;
+    }
+    .score-num { font-size: 26px; font-weight: 500; }
+    .score-unit { font-size: 11px; color: var(--text-tertiary); font-family: 'IBM Plex Mono', monospace; }
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
+    .metric-box { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 0.875rem; text-align: center; }
+    .metric-label { font-size: 11px; color: var(--text-tertiary); font-family: 'IBM Plex Mono', monospace; margin-bottom: 6px; }
+    .metric-val { font-size: 24px; font-weight: 500; }
+
+    /* FOOTER */
+    .footer {
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      padding: 2.5rem 0 1rem;
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    /* RULES */
+    .rule-row { font-size: 13px; line-height: 1.8; color: var(--text-secondary); }
+    .rule-row strong { color: var(--text-primary); font-weight: 500; }
+
+    @media (max-width: 500px) {
+      .level-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+      .app { padding: 1.5rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="lang-toggle">
+  <button class="lang-btn active" onclick="setLang('pt')">PT</button>
+  <button class="lang-btn" onclick="setLang('en')">EN</button>
+</div>
+
+<div class="app" id="app">
+
+  <!-- WELCOME -->
+  <div id="screen-welcome" class="screen active">
+    <div style="padding-top: 3rem;">
+      <p class="eyebrow" id="lbl-eyebrow">Sistema de análise operacional</p>
+      <h1 id="lbl-title">SP War Room</h1>
+      <p class="subtitle" id="lbl-subtitle">Você é a analista de plantão. Incidentes chegam ao vivo. Sua missão: triagear, investigar, priorizar e produzir o briefing antes que o tempo acabe.</p>
+
+      <div class="card">
+        <p class="card-title" id="lbl-rules-title">Como jogar</p>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <span class="tag tag-confirmed" style="margin-right: 6px;" id="tag-c">confirmado</span>
+            <span class="tag tag-indicated" style="margin-right: 6px;" id="tag-i">indicado</span>
+            <span class="tag tag-unverified" id="tag-u">não verificado</span>
+            <p style="margin-top: 8px; font-size: 13px; color: var(--text-secondary);" id="lbl-cert-desc">Cada incidente chega com um grau de certeza e uma fonte. Avalie antes de agir.</p>
+          </div>
+          <div class="rule-row"><strong id="lbl-p1-title">Fase 1 — Triagem:</strong> <span id="lbl-p1-desc">Leia os incidentes. Marque para investigar, escale ou descarte.</span></div>
+          <div class="rule-row"><strong id="lbl-p2-title">Fase 2 — Investigação:</strong> <span id="lbl-p2-desc">Peça mais informações. Cada pergunta custa tempo.</span></div>
+          <div class="rule-row"><strong id="lbl-p3-title">Fase 3 — Priorização:</strong> <span id="lbl-p3-desc">Escolha o que entra no relatório. Há um limite de slots.</span></div>
+          <div class="rule-row"><strong id="lbl-p4-title">Fase 4 — Briefing:</strong> <span id="lbl-p4-desc">Escreva o relatório executivo. A IA avalia seu produto.</span></div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top: 1.5rem;">
+        <button class="btn-primary" onclick="goToLevelSelect()" id="btn-start">Iniciar missão</button>
+        <button class="btn-secondary" onclick="showRules()" id="btn-rules">Ver regras completas</button>
+      </div>
+    </div>
+    <div class="footer">© Flávia Bocchino — Todos os direitos reservados</div>
+  </div>
+
+  <!-- RULES -->
+  <div id="screen-rules" class="screen">
+    <button class="btn-secondary" style="margin-bottom: 1.5rem; margin-top: 1rem;" onclick="goBack('screen-welcome')" id="btn-back-rules">← Voltar</button>
+    <h2 id="lbl-rules-full-title">Regras completas</h2>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem;" id="lbl-rules-sub">Leia antes do primeiro turno.</p>
+
+    <div class="card">
+      <p class="card-title" id="lbl-obj-title">Objetivo</p>
+      <p class="rule-row" id="lbl-obj-text">Simular um turno de plantão analítico. Você recebe incidentes com informações fragmentadas e precisa tomar decisões sob pressão de tempo: o que investigar, escalar, descartar, e o que incluir no briefing final.</p>
+    </div>
+
+    <div class="card">
+      <p class="card-title" id="lbl-score-title">Pontuação</p>
+      <div class="rule-row" id="lbl-score-body">
+        <p>✓ <strong>+20 pts</strong> — Incidente real incluído corretamente no briefing</p>
+        <p>✓ <strong>+10 pts</strong> — Ruído descartado corretamente</p>
+        <p>✗ <strong style="color: var(--red-text);">-15 pts</strong> — Falso alarme incluído no briefing</p>
+        <p>✗ <strong style="color: var(--red-text);">-20 pts</strong> — Ameaça real descartada</p>
+        <p>+ <strong>Bônus</strong> — Qualidade do briefing avaliada pela IA (estrutura, volume, recomendação)</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title" id="lbl-sources-title">Fontes e certeza</p>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <p><span class="tag tag-confirmed">confirmado</span> <span style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;" id="lbl-src-c">Fonte oficial, verificável, confiável</span></p>
+        <p><span class="tag tag-indicated">indicado</span> <span style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;" id="lbl-src-i">Relato de terceiro, mídia, informação parcial</span></p>
+        <p><span class="tag tag-unverified">não verificado</span> <span style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;" id="lbl-src-u">Fonte anônima, rumor, dado incompleto</span></p>
+        <p><span class="tag tag-disinfo">desinformação</span> <span style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;" id="lbl-src-d">Detectável apenas nos níveis avançados</span></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title" id="lbl-tips-title">Dicas da analista</p>
+      <div class="rule-row" id="lbl-tips-body">
+        <p>— Fontes anônimas nunca confirmam sozinhas.</p>
+        <p>— Dois relatos contraditórios sobre o mesmo incidente são um sinal de alerta.</p>
+        <p>— Priorize impacto real, não volume de notícias.</p>
+        <p>— No Red Noise: desconfie de tudo que parece óbvio demais.</p>
+        <p>— Ruído bem gerenciado é tão valioso quanto ameaça corretamente identificada.</p>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top: 1.5rem;">
+      <button class="btn-primary" onclick="goToLevelSelect()" id="btn-go-level">Escolher nível</button>
+    </div>
+    <div class="footer">© Flávia Bocchino — Todos os direitos reservados</div>
+  </div>
+
+  <!-- LEVEL SELECT -->
+  <div id="screen-level" class="screen">
+    <button class="btn-secondary" style="margin-bottom: 1.5rem; margin-top: 1rem;" onclick="goBack('screen-welcome')" id="btn-back-level">← Voltar</button>
+    <p class="eyebrow" id="lbl-choose-eyebrow">Selecione o nível de dificuldade</p>
+    <h2 id="lbl-choose-title">Qual é o seu turno hoje?</h2>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1.5rem;" id="lbl-choose-sub">Cada nível simula uma complexidade diferente de plantão. Escolha com honestidade.</p>
+
+    <div class="level-grid">
+      <button class="level-btn" onclick="startGame(0)">
+        <div class="level-icon">🟢</div>
+        <div class="level-name" id="lv0-name">Analista Júnior</div>
+        <div class="level-desc" id="lv0-desc">Primeiros passos no plantão. Fontes claras, tempo generoso, incidentes bem definidos.</div>
+        <div class="level-pills">
+          <span class="level-pill" id="lv0-p1">3–5 incidentes</span>
+          <span class="level-pill" id="lv0-p2">8 min</span>
+          <span class="level-pill" id="lv0-p3">Iniciante</span>
+        </div>
+      </button>
+
+      <button class="level-btn" onclick="startGame(1)">
+        <div class="level-icon">🟡</div>
+        <div class="level-name" id="lv1-name">Analista Pleno</div>
+        <div class="level-desc" id="lv1-desc">Volume maior. Fontes contraditórias. Você precisa justificar o que inclui e o que descarta.</div>
+        <div class="level-pills">
+          <span class="level-pill" id="lv1-p1">6–10 incidentes</span>
+          <span class="level-pill" id="lv1-p2">6 min</span>
+          <span class="level-pill" id="lv1-p3">Intermediário</span>
+        </div>
+      </button>
+
+      <button class="level-btn" onclick="startGame(2)">
+        <div class="level-icon">🔶</div>
+        <div class="level-name" id="lv2-name">Analista Sênior</div>
+        <div class="level-desc" id="lv2-desc">Desinformação plantada. Fontes anônimas. Viés de confirmação avaliado no briefing.</div>
+        <div class="level-pills">
+          <span class="level-pill" id="lv2-p1">10–15 incidentes</span>
+          <span class="level-pill" id="lv2-p2">4 min</span>
+          <span class="level-pill" id="lv2-p3">Avançado</span>
+        </div>
+      </button>
+
+      <button class="level-btn danger" onclick="startGame(3)">
+        <div class="level-icon">🔴</div>
+        <div class="level-name" id="lv3-name">Red Noise</div>
+        <div class="level-desc" id="lv3-desc">Tudo parece ameaça. Quase nada é. Pressão política simulada. Sem certeza pré-definida.</div>
+        <div class="level-pills">
+          <span class="level-pill" id="lv3-p1">8+ incidentes</span>
+          <span class="level-pill" id="lv3-p2">3 min</span>
+          <span class="level-pill" id="lv3-p3">Extremo</span>
+        </div>
+      </button>
+    </div>
+    <div class="footer">© Flávia Bocchino — Todos os direitos reservados</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div style="padding-top: 1rem;">
+      <div class="game-header">
+        <div>
+          <span class="eyebrow" id="game-level-name" style="margin-bottom: 0;">ANALISTA JÚNIOR</span>
+          <span style="font-size: 11px; color: var(--text-tertiary); font-family: 'IBM Plex Mono', monospace; margin-left: 10px;" id="game-phase-label">FASE 1 — TRIAGEM</span>
+        </div>
+        <div class="game-meta">
+          <span class="timer" id="game-timer">⏱ 8:00</span>
+          <span class="score-display" id="game-score">0 pts</span>
+        </div>
+      </div>
+
+      <div class="phase-bar" id="phase-dots">
+        <div class="phase-dot current"></div>
+        <div class="phase-dot"></div>
+        <div class="phase-dot"></div>
+        <div class="phase-dot"></div>
+      </div>
+      <div class="timer-track"><div class="timer-fill" id="timer-fill" style="width:100%"></div></div>
+
+      <div id="phase-triage">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem;" id="lbl-triage-inst">Leia cada incidente e decida: investigar, escalar ou descartar.</p>
+        <div id="incident-list"></div>
+        <div class="phase-footer">
+          <span class="phase-count" id="lbl-triage-count">0 marcados</span>
+          <button class="btn-primary" onclick="goToPhase(2)" id="btn-next-triage">Avançar →</button>
+        </div>
+      </div>
+
+      <div id="phase-investigate" style="display:none;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem;" id="lbl-inv-inst">Cada pergunta custa 30 segundos. Investigue apenas os incidentes marcados.</p>
+        <div id="investigate-list"></div>
+        <div style="text-align: right; margin-top: 1.25rem;">
+          <button class="btn-primary" onclick="goToPhase(3)" id="btn-next-inv">Avançar →</button>
+        </div>
+      </div>
+
+      <div id="phase-prioritize" style="display:none;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 1rem;" id="lbl-pri-inst">Selecione os incidentes para o briefing. Máximo: <span id="pri-max"></span>.</p>
+        <div id="prioritize-list"></div>
+        <div class="phase-footer">
+          <span class="phase-count" id="lbl-pri-count">0 selecionados</span>
+          <button class="btn-primary" onclick="goToPhase(4)" id="btn-next-pri">Escrever briefing →</button>
+        </div>
+      </div>
+
+      <div id="phase-briefing" style="display:none;">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 0.75rem;" id="lbl-brief-inst">Escreva o briefing executivo. Clara, objetiva, estruturada.</p>
+        <div class="card" style="margin-bottom: 1rem;">
+          <p class="card-title" id="lbl-sel-title">Incidentes selecionados</p>
+          <div id="briefing-incident-ref"></div>
+        </div>
+        <textarea class="briefing-area" id="briefing-text" rows="7"></textarea>
+        <div style="text-align: right; margin-top: 1rem;">
+          <button class="btn-primary" onclick="submitBriefing()" id="btn-submit">Entregar briefing</button>
+        </div>
+      </div>
+
+      <div id="phase-result" style="display:none;">
+        <div class="result-hero">
+          <div class="score-ring">
+            <span class="score-num" id="final-score-num">0</span>
+            <span class="score-unit">pts</span>
+          </div>
+          <h2 id="result-title">Missão encerrada</h2>
+          <p style="font-size: 13px; color: var(--text-secondary);" id="result-sub">Veja a avaliação abaixo.</p>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-box"><div class="metric-label" id="lbl-m1">Acertos</div><div class="metric-val" style="color: var(--green-text);" id="m-hits">0</div></div>
+          <div class="metric-box"><div class="metric-label" id="lbl-m2">Erros</div><div class="metric-val" style="color: var(--red-text);" id="m-misses">0</div></div>
+          <div class="metric-box"><div class="metric-label" id="lbl-m3">Bônus</div><div class="metric-val" id="m-bonus">0</div></div>
+        </div>
+
+        <div class="card">
+          <p class="card-title" id="lbl-feedback">Avaliação da supervisora</p>
+          <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.7;" id="ai-feedback-text"></p>
+        </div>
+
+        <div class="card">
+          <p class="card-title" id="lbl-after">After-action</p>
+          <div id="after-action-list"></div>
+        </div>
+
+        <div class="btn-row" style="margin-top: 1.5rem;">
+          <button class="btn-primary" onclick="goToLevelSelect()" id="btn-again">Nova missão</button>
+          <button class="btn-secondary" onclick="goBack('screen-welcome')" id="btn-home">Início</button>
+        </div>
+      </div>
+    </div>
+    <div class="footer">© Flávia Bocchino — Todos os direitos reservados</div>
+  </div>
+
+</div>
+
+<script>
+let lang = 'pt';
+let gameState = {};
+let timerInterval = null;
+
+const T = {
+  pt: {
+    eyebrow:'Sistema de análise operacional',title:'SP War Room',
+    subtitle:'Você é a analista de plantão. Incidentes chegam ao vivo. Sua missão: triagear, investigar, priorizar e produzir o briefing antes que o tempo acabe.',
+    rulesTitle:'Como jogar',
+    certDesc:'Cada incidente chega com um grau de certeza e uma fonte. Avalie antes de agir.',
+    p1Title:'Fase 1 — Triagem:',p1Desc:'Leia os incidentes. Marque para investigar, escale ou descarte.',
+    p2Title:'Fase 2 — Investigação:',p2Desc:'Peça mais informações. Cada pergunta custa tempo.',
+    p3Title:'Fase 3 — Priorização:',p3Desc:'Escolha o que entra no relatório. Há um limite de slots.',
+    p4Title:'Fase 4 — Briefing:',p4Desc:'Escreva o relatório executivo. A IA avalia seu produto.',
+    btnStart:'Iniciar missão',btnRules:'Ver regras completas',btnBack:'← Voltar',
+    rulesFullTitle:'Regras completas',rulesSub:'Leia antes do primeiro turno.',
+    objTitle:'Objetivo',objText:'Simular um turno de plantão analítico. Você recebe incidentes com informações fragmentadas e precisa tomar decisões sob pressão de tempo: o que investigar, escalar, descartar, e o que incluir no briefing final.',
+    scoreTitle:'Pontuação',sourcesTitle:'Fontes e certeza',tipsTitle:'Dicas da analista',
+    srcC:'Fonte oficial, verificável, confiável',srcI:'Relato de terceiro, mídia, informação parcial',
+    srcU:'Fonte anônima, rumor, dado incompleto',srcD:'Detectável apenas nos níveis avançados',
+    goLevel:'Escolher nível',
+    chooseEyebrow:'Selecione o nível de dificuldade',chooseTitle:'Qual é o seu turno hoje?',
+    chooseSub:'Cada nível simula uma complexidade diferente de plantão. Escolha com honestidade.',
+    tagC:'confirmado',tagI:'indicado',tagU:'não verificado',
+    lv:[
+      {name:'Analista Júnior',desc:'Primeiros passos no plantão. Fontes claras, tempo generoso, incidentes bem definidos.',p1:'3–5 incidentes',p2:'8 min',p3:'Iniciante'},
+      {name:'Analista Pleno',desc:'Volume maior. Fontes contraditórias. Você precisa justificar o que inclui e o que descarta.',p1:'6–10 incidentes',p2:'6 min',p3:'Intermediário'},
+      {name:'Analista Sênior',desc:'Desinformação plantada. Fontes anônimas. Viés de confirmação avaliado no briefing.',p1:'10–15 incidentes',p2:'4 min',p3:'Avançado'},
+      {name:'Red Noise',desc:'Tudo parece ameaça. Quase nada é. Pressão política simulada. Sem certeza pré-definida.',p1:'8+ incidentes',p2:'3 min',p3:'Extremo'}
+    ],
+    phase1:'FASE 1 — TRIAGEM',phase2:'FASE 2 — INVESTIGAÇÃO',phase3:'FASE 3 — PRIORIZAÇÃO',phase4:'FASE 4 — BRIEFING',
+    triageInst:'Leia cada incidente e decida: investigar, escalar ou descartar.',
+    invInst:'Cada pergunta custa 30 segundos. Investigue apenas os incidentes marcados.',
+    priInst:'Selecione os incidentes para o briefing. Máximo:',
+    briefInst:'Escreva o briefing executivo. Clara, objetiva, estruturada.',
+    selTitle:'Incidentes selecionados',
+    btnEscalate:'Escalar',btnInvestigate:'Investigar',btnDismiss:'Descartar',
+    btnInclude:'+ Incluir',btnRemove:'– Remover',btnAskMore:'Pedir mais informação (−30s)',
+    btnSubmit:'Entregar briefing',btnAgain:'Nova missão',btnHome:'Início',
+    triageCount:n=>`${n} marcado(s)`,priCount:n=>`${n} selecionado(s)`,
+    resultTitle:'Missão encerrada',resultSub:'Veja a avaliação abaixo.',
+    mHits:'Acertos',mMisses:'Erros',mBonus:'Bônus',
+    feedbackLabel:'Avaliação da supervisora',afterLabel:'After-action',
+    extraObtained:'Informação adicional obtida.',noneInvestigated:'Nenhum incidente marcado.',
+    included:'incluído',excluded:'excluído',wasReal:' — era real',wasNoise:' — era ruído',
+    fonte:'Fonte',
+    placeholder:'Relatório de Inteligência — Turno [Manhã/Tarde/Noite]\n\nIncidentes prioritários:\n...\n\nAnálise:\n...\n\nRecomendação:\n...',
+  },
+  en: {
+    eyebrow:'Operational analysis system',title:'SP War Room',
+    subtitle:'You are the on-call analyst. Incidents arrive live. Your mission: triage, investigate, prioritize, and produce the briefing before time runs out.',
+    rulesTitle:'How to play',
+    certDesc:'Each incident arrives with a confidence level and a source. Assess before acting.',
+    p1Title:'Phase 1 — Triage:',p1Desc:'Read each incident. Flag for investigation, escalate, or dismiss.',
+    p2Title:'Phase 2 — Investigation:',p2Desc:'Request more information. Each query costs time.',
+    p3Title:'Phase 3 — Prioritization:',p3Desc:'Choose what goes into the report. Slots are limited.',
+    p4Title:'Phase 4 — Briefing:',p4Desc:'Write the executive briefing. AI evaluates your product.',
+    btnStart:'Start mission',btnRules:'Full rules',btnBack:'← Back',
+    rulesFullTitle:'Full rules',rulesSub:'Read before your first shift.',
+    objTitle:'Objective',objText:'Simulate an analytical on-call shift. You receive incidents with fragmented information and must make decisions under time pressure: what to investigate, escalate, dismiss, and include in the final briefing.',
+    scoreTitle:'Scoring',sourcesTitle:'Sources and confidence',tipsTitle:'Analyst tips',
+    srcC:'Official, verifiable, reliable source',srcI:'Third-party report, media, partial data',
+    srcU:'Anonymous source, rumor, incomplete data',srcD:'Detectable only in advanced levels',
+    goLevel:'Choose level',
+    chooseEyebrow:'Select difficulty level',chooseTitle:'What is your shift today?',
+    chooseSub:'Each level simulates a different shift complexity. Choose honestly.',
+    tagC:'confirmed',tagI:'indicated',tagU:'unverified',
+    lv:[
+      {name:'Junior Analyst',desc:'First steps on shift. Clear sources, generous time, well-defined incidents.',p1:'3–5 incidents',p2:'8 min',p3:'Beginner'},
+      {name:'Mid-Level Analyst',desc:'Higher volume. Conflicting sources. You must justify what you include and exclude.',p1:'6–10 incidents',p2:'6 min',p3:'Intermediate'},
+      {name:'Senior Analyst',desc:'Planted disinformation. Anonymous sources. Confirmation bias assessed in the briefing.',p1:'10–15 incidents',p2:'4 min',p3:'Advanced'},
+      {name:'Red Noise',desc:'Everything looks like a threat. Almost nothing is. Simulated political pressure. No pre-set confidence.',p1:'8+ incidents',p2:'3 min',p3:'Extreme'}
+    ],
+    phase1:'PHASE 1 — TRIAGE',phase2:'PHASE 2 — INVESTIGATION',phase3:'PHASE 3 — PRIORITIZATION',phase4:'PHASE 4 — BRIEFING',
+    triageInst:'Read each incident and decide: investigate, escalate, or dismiss.',
+    invInst:'Each query costs 30 seconds. Only investigate flagged incidents.',
+    priInst:'Select incidents for the briefing. Maximum:',
+    briefInst:'Write the executive briefing. Clear, objective, structured.',
+    selTitle:'Selected incidents',
+    btnEscalate:'Escalate',btnInvestigate:'Investigate',btnDismiss:'Dismiss',
+    btnInclude:'+ Include',btnRemove:'– Remove',btnAskMore:'Request more info (−30s)',
+    btnSubmit:'Submit briefing',btnAgain:'New mission',btnHome:'Home',
+    triageCount:n=>`${n} flagged`,priCount:n=>`${n} selected`,
+    resultTitle:'Mission complete',resultSub:'See your evaluation below.',
+    mHits:'Correct',mMisses:'Errors',mBonus:'Bonus',
+    feedbackLabel:'Supervisor evaluation',afterLabel:'After-action report',
+    extraObtained:'Additional information obtained.',noneInvestigated:'No incidents flagged.',
+    included:'included',excluded:'excluded',wasReal:' — was real',wasNoise:' — was noise',
+    fonte:'Source',
+    placeholder:'Intelligence Report — Shift [Morning/Afternoon/Night]\n\nPriority incidents:\n...\n\nAnalysis:\n...\n\nRecommendation:\n...',
+  }
+};
+
+const LEVEL_CONFIG=[
+  {time:480,maxBriefing:3,labelPT:'ANALISTA JÚNIOR',labelEN:'JUNIOR ANALYST'},
+  {time:360,maxBriefing:4,labelPT:'ANALISTA PLENO',labelEN:'MID-LEVEL ANALYST'},
+  {time:240,maxBriefing:5,labelPT:'ANALISTA SÊNIOR',labelEN:'SENIOR ANALYST'},
+  {time:180,maxBriefing:3,labelPT:'🔴 RED NOISE',labelEN:'🔴 RED NOISE'}
+];
+
+const INCIDENTS_PT=[
+  [{id:1,title:'Concentração de pessoas',location:'Av. Paulista, altura da FIESP',time:'09:47',source:'Relato de funcionário',cert:'indicated',real:true,detail:'Aproximadamente 200 pessoas. Sem faixas ou megafones. Possível manifestação espontânea.'},{id:2,title:'Suspeita de veículo abandonado',location:'R. Augusta, 1400',time:'10:03',source:'PM — oficial',cert:'confirmed',real:true,detail:'Veículo sem placa estacionado há mais de 6h. Equipe de bombeiros a caminho.'},{id:3,title:'E-mail ameaçador recebido',location:'Consulate inbox',time:'08:15',source:'TI interno',cert:'confirmed',real:false,detail:'Endereço genérico. Linguagem vaga. Sem indicadores de capacidade operacional.'},{id:4,title:'Briga em frente ao edifício',location:'Entrada principal',time:'11:22',source:'Segurança local',cert:'confirmed',real:false,detail:'Desentendimento verbal. Sem armas. Dispersados em 4 minutos. Sem envolvimento com o edifício.'}],
+  [{id:1,title:'Protesto de trabalhadores',location:'Largo da Batata, Pinheiros',time:'07:30',source:'Mídia — G1',cert:'confirmed',real:true,detail:'Sindicato de transporte. ~1.200 manifestantes. Rota inclui Av. Faria Lima.'},{id:2,title:'Atividade suspeita em câmeras',location:'Câmera 4 — estacionamento B',time:'08:52',source:'Monitoramento interno',cert:'indicated',real:true,detail:'Indivíduo circula pelo estacionamento por 35 min sem veículo. Saiu sem incidente.'},{id:3,title:'Alerta de phishing corporativo',location:'Rede interna',time:'09:10',source:'TI — alerta automático',cert:'confirmed',real:true,detail:'Campanha de spear phishing contra @state.gov. Seis cliques registrados.'},{id:4,title:'Servidor desconhecido na rede',location:'Segmento administrativo',time:'10:41',source:'Anônimo — chamado interno',cert:'unverified',real:false,detail:'Nenhum log suspeito. Dispositivo identificado como impressora. Alerta por erro de configuração.'},{id:5,title:'Ameaça verbal a funcionário',location:'Saída lateral',time:'11:58',source:'Relato do funcionário',cert:'indicated',real:false,detail:'Reportado como "seguido". Câmeras não captaram perseguição. Funcionário não acionou emergência.'},{id:6,title:'Explosão escutada',location:'Vizinhança — Itaim Bibi',time:'13:22',source:'Três relatos independentes',cert:'unverified',real:false,detail:'Equipes locais não registraram ocorrência. Provável pneu estourado.'}],
+  [{id:1,title:'Manifestação anticorrupção',location:'Praça da Sé',time:'14:00',source:'SPTRANS + Mídia',cert:'confirmed',real:true,detail:'Evento autorizado. 5.000 participantes. ONG conhecida. Rota delineada.'},{id:2,title:'Celular de funcionário clonado',location:'Remoto — fora do país',time:'06:30',source:'TI — alerta de login',cert:'indicated',real:true,detail:'Login em dois dispositivos em países diferentes em 40 min. SIM swap provável.'},{id:3,title:'Infiltração em reunião interna',location:'Sala 3B',time:'10:00',source:'Anônimo',cert:'unverified',real:false,detail:'Fonte não identificável. Reunião com visitantes credenciados. Sem irregularidades.'},{id:4,title:'Táxi suspeito na entrada',location:'Portaria principal',time:'11:35',source:'Segurança',cert:'unverified',real:false,detail:'Motorista parou 3 min aguardando passageiro. Saiu normalmente. Sem comportamento de vigilância.'},{id:5,title:'Vazamento de dados — fornecedor',location:'Externo',time:'08:00',source:'Notícia + TI',cert:'confirmed',real:true,detail:'Fornecedor terceirizado sofreu breach. Emails institucionais podem estar expostos.'},{id:6,title:'Pessoa filmando o edifício',location:'Calçada oposta',time:'13:00',source:'Câmera de vigilância',cert:'indicated',real:false,detail:'Indivíduo com celular por 8 min. Área pública. Pode ser turista.'},{id:7,title:'Drone sobre o telhado',location:'Cobertura',time:'15:30',source:'Segurança no telhado',cert:'confirmed',real:true,detail:'Drone sem marcação visível. Sobrevoou 4 min. Câmera não confirmada.'},{id:8,title:'Alerta de agência parceira',location:'Canal seguro',time:'07:45',source:'Parceiro oficial',cert:'confirmed',real:true,detail:'Aviso de possível operação de vigilância contra pessoal diplomático na zona sul nas próximas 72h.'}],
+  [{id:1,title:'Alerta crítico — fonte anônima',location:'Indeterminado',time:'06:01',source:'Anônimo — email cifrado',cert:'unverified',real:false,detail:'Conteúdo alarmante mas sem especificidade operacional. Padrão semelhante a alertas anteriores descartados.'},{id:2,title:'Protesto massivo confirmado',location:'Av. Paulista',time:'10:00',source:'Defesa Civil + PM',cert:'confirmed',real:true,detail:'80.000 participantes estimados. Sem histórico de violência. Alto impacto em mobilidade.'},{id:3,title:'Alerta de reconhecimento facial',location:'Câmera lobby',time:'09:22',source:'Sistema automatizado',cert:'indicated',real:false,detail:'Match de 63% com indivíduo em lista de atenção. Abaixo do limiar de ação (80%). Possível falso positivo.'},{id:4,title:'Funcionário não apareceu',location:'Departamento Consular',time:'08:00',source:'Supervisor direto',cert:'confirmed',real:true,detail:'Sem aviso de ausência. Celular fora de área. Histórico limpo. Pode ser emergência pessoal ou algo mais grave.'},{id:5,title:'Mensagem no Telegram',location:'Grupo público monitorado',time:'07:15',source:'OSINT — monitoramento',cert:'unverified',real:false,detail:'Post mencionando "operação hoje". Sem detalhes. Grupo sem histórico de atividade real.'},{id:6,title:'Supervisor pede prioridade',location:'Memo interno',time:'09:00',source:'Chefia imediata',cert:'confirmed',real:false,detail:'PRESSÃO POLÍTICA: Supervisor pede inclusão do incidente 1 "por precaução". Sem embasamento analítico.'},{id:7,title:'Veículo idêntico dois dias seguidos',location:'Câmera externa 2',time:'08:30',source:'Segurança — análise de padrão',cert:'indicated',real:true,detail:'Mesmo modelo, mesma cor, sem placa. Estacionou 10 min em frente ao acesso lateral nos dois dias.'},{id:8,title:'Queda do sistema de crachás',location:'Infraestrutura TI',time:'10:15',source:'TI interno',cert:'confirmed',real:false,detail:'Sistema caiu 18 min. Causa: atualização automática. Sem acesso não autorizado registrado.'}]
+];
+
+const INCIDENTS_EN=[
+  [{id:1,title:'Crowd gathering',location:'Av. Paulista, near FIESP',time:'09:47',source:'Staff report',cert:'indicated',real:true,detail:'Approximately 200 people. No banners or megaphones. Possible spontaneous demonstration.'},{id:2,title:'Suspected abandoned vehicle',location:'R. Augusta, 1400',time:'10:03',source:'PM — official',cert:'confirmed',real:true,detail:'Vehicle with no readable plate parked for over 6 hours. Fire department en route.'},{id:3,title:'Threatening email received',location:'Consulate inbox',time:'08:15',source:'Internal IT',cert:'confirmed',real:false,detail:'Generic sender. Vague language. No concrete indicators of operational capability.'},{id:4,title:'Fight at building entrance',location:'Main entrance',time:'11:22',source:'Local security',cert:'confirmed',real:false,detail:'Verbal altercation. No weapons. Dispersed in 4 minutes. No connection to the building.'}],
+  [{id:1,title:'Workers protest',location:'Largo da Batata, Pinheiros',time:'07:30',source:'Media — G1',cert:'confirmed',real:true,detail:'Transport union. ~1,200 protesters. Planned route includes Av. Faria Lima.'},{id:2,title:'Suspicious activity on camera',location:'Camera 4 — parking B',time:'08:52',source:'Internal monitoring',cert:'indicated',real:true,detail:'Individual circling parking lot for 35 min without a vehicle. Left without incident.'},{id:3,title:'Corporate phishing alert',location:'Internal network',time:'09:10',source:'IT — auto-alert',cert:'confirmed',real:true,detail:'Active spear-phishing campaign targeting @state.gov addresses. Six clicks registered.'},{id:4,title:'Unknown server on network',location:'Administrative segment',time:'10:41',source:'Anonymous — internal ticket',cert:'unverified',real:false,detail:'No suspicious logs. Device identified as a printer. Alert from misconfiguration.'},{id:5,title:'Verbal threat to staff member',location:'Side exit',time:'11:58',source:'Staff report',cert:'indicated',real:false,detail:'Reported as followed. Cameras showed no pursuit. Staff did not trigger emergency protocol.'},{id:6,title:'Explosion sound reported',location:'Neighborhood — Itaim Bibi',time:'13:22',source:'Three independent reports',cert:'unverified',real:false,detail:'Local emergency teams recorded no incident. Likely tire blowout.'}],
+  [{id:1,title:'Anti-corruption demonstration',location:'Praça da Sé',time:'14:00',source:'SPTRANS + Media',cert:'confirmed',real:true,detail:'Authorized event. 5,000 participants. Known NGO. Route outlined.'},{id:2,title:'Staff phone cloned',location:'Remote — abroad',time:'06:30',source:'IT — login alert',cert:'indicated',real:true,detail:'Login from two devices in different countries within 40 minutes. Probable SIM swap.'},{id:3,title:'Internal meeting infiltration',location:'Room 3B',time:'10:00',source:'Anonymous',cert:'unverified',real:false,detail:'Unidentifiable source. Credentialed visitors with signed VARs. No irregularities.'},{id:4,title:'Suspicious taxi at entrance',location:'Main gate',time:'11:35',source:'Security',cert:'unverified',real:false,detail:'Driver stopped 3 min waiting for passenger. Departed normally. No surveillance behavior.'},{id:5,title:'Vendor data breach',location:'External',time:'08:00',source:'News + IT',cert:'confirmed',real:true,detail:'Third-party vendor suffered a breach. Institutional emails may be exposed.'},{id:6,title:'Person filming the building',location:'Opposite sidewalk',time:'13:00',source:'Surveillance camera',cert:'indicated',real:false,detail:'Individual with phone for 8 min. Public area. May be a tourist.'},{id:7,title:'Drone over the rooftop',location:'Rooftop',time:'15:30',source:'Rooftop security',cert:'confirmed',real:true,detail:'Drone with no visible markings. Hovered 4 min. No visible camera but unconfirmable.'},{id:8,title:'Partner agency alert',location:'Secure channel',time:'07:45',source:'Official partner',cert:'confirmed',real:true,detail:'Warning of possible surveillance operation against diplomatic staff in southern SP within 72 hours.'}],
+  [{id:1,title:'Critical alert — anonymous source',location:'Undetermined',time:'06:01',source:'Anonymous — encrypted email',cert:'unverified',real:false,detail:'Alarming content but no operational specificity. Similar pattern to previously discarded alerts.'},{id:2,title:'Confirmed mass protest',location:'Av. Paulista',time:'10:00',source:'Civil Defense + PM',cert:'confirmed',real:true,detail:'Estimated 80,000 participants. No history of violence. High mobility impact.'},{id:3,title:'Facial recognition alert',location:'Lobby camera',time:'09:22',source:'Automated system',cert:'indicated',real:false,detail:'63% match with watchlist individual. Below action threshold (80%). May be false positive.'},{id:4,title:'Staff member did not show up',location:'Consular Department',time:'08:00',source:'Direct supervisor',cert:'confirmed',real:true,detail:'No absence notice. Phone out of range. Clean record. May be personal emergency or more serious.'},{id:5,title:'Telegram message',location:'Monitored public group',time:'07:15',source:'OSINT — monitoring',cert:'unverified',real:false,detail:'Post mentioning operation today. No details. Group with no history of real activity.'},{id:6,title:'Supervisor requests priority',location:'Internal memo',time:'09:00',source:'Direct supervisor',cert:'confirmed',real:false,detail:'POLITICAL PRESSURE: Supervisor requests incident 1 be included as precaution. No analytical basis.'},{id:7,title:'Same vehicle two days in a row',location:'External camera 2',time:'08:30',source:'Security — pattern analysis',cert:'indicated',real:true,detail:'Same model, color, no readable plate. Parked 10 min at side access on both days.'},{id:8,title:'Badge system outage',location:'IT infrastructure',time:'10:15',source:'Internal IT',cert:'confirmed',real:false,detail:'System down 18 min. Cause: auto-update. No unauthorized access recorded.'}]
+];
+
+const FEEDBACK_PT=['Bom trabalho para um primeiro turno. Você identificou as ameaças reais e descartou a maioria do ruído. Atenção à linguagem do briefing: evite jargão desnecessário e separe fatos de inferências.','Desempenho sólido. Você equilibrou velocidade e precisão. Pontos de melhoria: justifique melhor cada exclusão e confirme fontes contraditórias antes de escalar.','Nível avançado bem executado. Você identificou a desinformação plantada. Faltou estrutura clara no briefing — separe fatos de inferências de forma explícita e documente as omissões deliberadas.','Red Noise é o nível mais difícil por design. Resistir à pressão política é a habilidade central aqui. Avalie sempre a fonte, não a urgência do solicitante. Ruído bem gerenciado é tão valioso quanto ameaça corretamente identificada.'];
+const FEEDBACK_EN=['Good work for a first shift. You identified real threats and dismissed most of the noise. Watch your briefing language: avoid jargon and separate facts from inferences.','Solid performance. You balanced speed and accuracy. Areas for improvement: better justify each exclusion and confirm conflicting sources before escalating.','Advanced level well executed. You identified the planted disinformation. The briefing lacked clear structure — separate facts from inferences explicitly and document deliberate omissions.','Red Noise is the hardest level by design. Resisting political pressure is the core skill here. Always evaluate the source, not the requester\'s urgency. Well-managed noise is as valuable as a correctly identified threat.'];
+
+function setLang(l){
+  lang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.textContent===l.toUpperCase()));
+  document.documentElement.lang=l==='pt'?'pt-BR':'en';
+  updateAllText();
+}
+
+function setText(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}
+
+function updateAllText(){
+  const t=T[lang];
+  setText('lbl-eyebrow',t.eyebrow);setText('lbl-title',t.title);setText('lbl-subtitle',t.subtitle);
+  setText('lbl-rules-title',t.rulesTitle);setText('lbl-cert-desc',t.certDesc);
+  setText('lbl-p1-title',t.p1Title);setText('lbl-p1-desc',t.p1Desc);
+  setText('lbl-p2-title',t.p2Title);setText('lbl-p2-desc',t.p2Desc);
+  setText('lbl-p3-title',t.p3Title);setText('lbl-p3-desc',t.p3Desc);
+  setText('lbl-p4-title',t.p4Title);setText('lbl-p4-desc',t.p4Desc);
+  setText('btn-start',t.btnStart);setText('btn-rules',t.btnRules);
+  setText('btn-back-rules',t.btnBack);setText('btn-back-level',t.btnBack);
+  setText('lbl-rules-full-title',t.rulesFullTitle);setText('lbl-rules-sub',t.rulesSub);
+  setText('lbl-obj-title',t.objTitle);setText('lbl-obj-text',t.objText);
+  setText('lbl-score-title',t.scoreTitle);setText('lbl-sources-title',t.sourcesTitle);
+  setText('lbl-tips-title',t.tipsTitle);
+  setText('lbl-src-c',t.srcC);setText('lbl-src-i',t.srcI);setText('lbl-src-u',t.srcU);setText('lbl-src-d',t.srcD);
+  setText('btn-go-level',t.goLevel);
+  setText('lbl-choose-eyebrow',t.chooseEyebrow);setText('lbl-choose-title',t.chooseTitle);setText('lbl-choose-sub',t.chooseSub);
+  setText('tag-c',t.tagC);setText('tag-i',t.tagI);setText('tag-u',t.tagU);
+  t.lv.forEach((lv,i)=>{
+    setText('lv'+i+'-name',lv.name);setText('lv'+i+'-desc',lv.desc);
+    setText('lv'+i+'-p1',lv.p1);setText('lv'+i+'-p2',lv.p2);setText('lv'+i+'-p3',lv.p3);
+  });
+  setText('lbl-m1',t.mHits);setText('lbl-m2',t.mMisses);setText('lbl-m3',t.mBonus);
+  setText('btn-again',t.btnAgain);setText('btn-home',t.btnHome);
+  setText('result-title',t.resultTitle);setText('result-sub',t.resultSub);
+  setText('lbl-feedback',t.feedbackLabel);setText('lbl-after',t.afterLabel);
+}
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function showRules(){showScreen('screen-rules');}
+function goToLevelSelect(){clearInterval(timerInterval);showScreen('screen-level');}
+function goBack(scr){clearInterval(timerInterval);showScreen(scr);}
+
+function startGame(level){
+  clearInterval(timerInterval);
+  const t=T[lang];
+  const cfg=LEVEL_CONFIG[level];
+  const incidents=(lang==='en'?INCIDENTS_EN:INCIDENTS_PT)[level];
+  gameState={level,incidents:incidents.map(i=>({...i,status:'pending',included:false,extraInfo:false})),timeLeft:cfg.time,totalTime:cfg.time,score:0,phase:1,maxBriefing:cfg.maxBriefing,hits:0,misses:0,bonus:0};
+  setText('game-level-name',lang==='en'?cfg.labelEN:cfg.labelPT);
+  setText('game-phase-label',t.phase1);
+  setText('game-score','0 pts');
+  document.getElementById('briefing-text').placeholder=t.placeholder;
+  showScreen('screen-game');
+  renderTriage();
+  startTimer();
+  updatePhaseDots(1);
+}
+
+function startTimer(){
+  clearInterval(timerInterval);
+  updateTimerDisplay();
+  timerInterval=setInterval(()=>{
+    gameState.timeLeft--;
+    updateTimerDisplay();
+    if(gameState.timeLeft<=0){clearInterval(timerInterval);if(gameState.phase<4)goToPhase(4);else submitBriefing();}
+  },1000);
+}
+
+function updateTimerDisplay(){
+  const m=Math.floor(gameState.timeLeft/60),s=gameState.timeLeft%60;
+  const el=document.getElementById('game-timer');
+  el.textContent='⏱ '+m+':'+(s<10?'0':'')+s;
+  el.classList.toggle('urgent',gameState.timeLeft<60);
+  const pct=Math.max(0,(gameState.timeLeft/gameState.totalTime)*100);
+  const fill=document.getElementById('timer-fill');
+  fill.style.width=pct+'%';
+  fill.classList.toggle('urgent',pct<25);
+}
+
+function updatePhaseDots(phase){
+  document.querySelectorAll('.phase-dot').forEach((d,i)=>{
+    d.classList.remove('done','current');
+    if(i<phase-1)d.classList.add('done');
+    else if(i===phase-1)d.classList.add('current');
+  });
+}
+
+function certLabel(cert){
+  return lang==='pt'?{confirmed:'confirmado',indicated:'indicado',unverified:'não verificado'}[cert]||cert:{confirmed:'confirmed',indicated:'indicated',unverified:'unverified'}[cert]||cert;
+}
+
+function renderTriage(){
+  const t=T[lang];
+  const list=document.getElementById('incident-list');
+  list.innerHTML='';
+  setText('lbl-triage-inst',t.triageInst);
+  setText('btn-next-triage','Avançar →');
+  gameState.incidents.forEach(inc=>{
+    const cClass='tag-'+(inc.cert==='confirmed'?'confirmed':inc.cert==='indicated'?'indicated':'unverified');
+    const sClass=inc.status==='escalated'?'escalated':inc.status==='investigate'?'investigate':inc.status==='dismissed'?'dismissed':'';
+    const d=document.createElement('div');
+    d.className='incident-card '+sClass;
+    d.id='inc-card-'+inc.id;
+    d.innerHTML=`<div class="inc-header"><div><span class="inc-title">${inc.title}</span><span class="inc-time">${inc.time}</span></div><span class="tag ${cClass}">${certLabel(inc.cert)}</span></div><p class="inc-meta">📍 ${inc.location} · <em>${t.fonte}: ${inc.source}</em></p><p class="inc-detail">${inc.detail}</p><div class="action-row"><button class="act-btn escalate" onclick="setStatus(${inc.id},'escalated')">${t.btnEscalate}</button><button class="act-btn investigate" onclick="setStatus(${inc.id},'investigate')">${t.btnInvestigate}</button><button class="act-btn" onclick="setStatus(${inc.id},'dismissed')">${t.btnDismiss}</button></div>`;
+    list.appendChild(d);
+  });
+  updateTriageCount();
+}
+
+function setStatus(id,status){
+  const inc=gameState.incidents.find(i=>i.id===id);
+  if(!inc)return;
+  inc.status=status;
+  const card=document.getElementById('inc-card-'+id);
+  card.className='incident-card '+(status==='escalated'?'escalated':status==='investigate'?'investigate':status==='dismissed'?'dismissed':'');
+  updateTriageCount();
+}
+
+function updateTriageCount(){
+  const n=gameState.incidents.filter(i=>i.status==='investigate'||i.status==='escalated').length;
+  setText('lbl-triage-count',T[lang].triageCount(n));
+}
+
+function goToPhase(phase){
+  const t=T[lang];
+  gameState.phase=phase;
+  updatePhaseDots(phase);
+  ['phase-triage','phase-investigate','phase-prioritize','phase-briefing','phase-result'].forEach(id=>{document.getElementById(id).style.display='none';});
+  if(phase===2){setText('game-phase-label',t.phase2);document.getElementById('phase-investigate').style.display='block';renderInvestigate();}
+  else if(phase===3){setText('game-phase-label',t.phase3);document.getElementById('phase-prioritize').style.display='block';renderPrioritize();}
+  else if(phase===4){setText('game-phase-label',t.phase4);document.getElementById('phase-briefing').style.display='block';renderBriefingRef();}
+  else if(phase===5){showResult();}
+}
+
+function renderInvestigate(){
+  const t=T[lang];
+  setText('lbl-inv-inst',t.invInst);
+  const list=document.getElementById('investigate-list');
+  list.innerHTML='';
+  const flagged=gameState.incidents.filter(i=>i.status==='investigate'||i.status==='escalated');
+  if(!flagged.length){list.innerHTML=`<p style="font-size:13px;color:var(--text-secondary);">${t.noneInvestigated}</p>`;return;}
+  flagged.forEach(inc=>{
+    const d=document.createElement('div');
+    d.className='card';d.style.marginBottom='10px';
+    d.innerHTML=`<p style="font-weight:500;font-size:14px;margin-bottom:6px;">${inc.title}</p><p style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px;">${inc.detail}</p>${inc.extraInfo?`<p style="font-size:12px;color:var(--green-text);">✓ ${t.extraObtained}</p>`:`<button class="act-btn warning" onclick="getExtra(${inc.id})">${t.btnAskMore}</button>`}`;
+    list.appendChild(d);
+  });
+}
+
+function getExtra(id){
+  const inc=gameState.incidents.find(i=>i.id===id);
+  if(!inc)return;
+  inc.extraInfo=true;
+  gameState.timeLeft=Math.max(0,gameState.timeLeft-30);
+  updateTimerDisplay();
+  renderInvestigate();
+}
+
+function renderPrioritize(){
+  const t=T[lang];
+  setText('lbl-pri-inst',t.priInst+' '+gameState.maxBriefing+'.');
+  setText('pri-max','');
+  const list=document.getElementById('prioritize-list');
+  list.innerHTML='';
+  gameState.incidents.filter(i=>i.status!=='dismissed').forEach(inc=>{
+    const d=document.createElement('div');
+    d.className='incident-card'+(inc.included?' selected':'');
+    d.id='pri-card-'+inc.id;
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;"><div><span style="font-weight:500;font-size:14px;">${inc.title}</span><p style="font-size:12px;color:var(--text-tertiary);margin-top:3px;">📍 ${inc.location}</p></div><button class="act-btn ${inc.included?'':'include'}" onclick="toggleInclude(${inc.id})">${inc.included?t.btnRemove:t.btnInclude}</button></div>`;
+    list.appendChild(d);
+  });
+  updatePriCount();
+}
+
+function toggleInclude(id){
+  const inc=gameState.incidents.find(i=>i.id===id);
+  const n=gameState.incidents.filter(i=>i.included).length;
+  if(!inc.included&&n>=gameState.maxBriefing)return;
+  inc.included=!inc.included;
+  renderPrioritize();
+}
+
+function updatePriCount(){
+  const n=gameState.incidents.filter(i=>i.included).length;
+  setText('lbl-pri-count',T[lang].priCount(n));
+}
+
+function renderBriefingRef(){
+  const t=T[lang];
+  setText('lbl-brief-inst',t.briefInst);
+  setText('lbl-sel-title',t.selTitle);
+  setText('btn-submit',t.btnSubmit);
+  const ref=document.getElementById('briefing-incident-ref');
+  ref.innerHTML='';
+  gameState.incidents.filter(i=>i.included).forEach(inc=>{
+    const p=document.createElement('p');
+    p.style.cssText='font-size:12px;color:var(--text-secondary);margin-bottom:4px;';
+    p.textContent='• '+inc.title+' — '+inc.location;
+    ref.appendChild(p);
+  });
+}
+
+function submitBriefing(){
+  clearInterval(timerInterval);
+  const briefing=document.getElementById('briefing-text').value.trim();
+  const selected=gameState.incidents.filter(i=>i.included);
+  let score=0,hits=0,misses=0;
+  selected.forEach(inc=>{if(inc.real){score+=20;hits++;}else{score-=15;misses++;}});
+  gameState.incidents.filter(i=>!i.included&&i.status==='dismissed'&&!i.real).forEach(()=>{score+=10;hits++;});
+  gameState.incidents.filter(i=>!i.included&&i.real).forEach(()=>{score-=20;misses++;});
+  const wc=briefing.split(/\s+/).filter(Boolean).length;
+  let bonus=0;
+  if(wc>=40)bonus+=15;
+  if(wc>=80)bonus+=10;
+  const kw=lang==='pt'?['recomend','sugiro','proponho']:['recommend','suggest','propose'];
+  if(kw.some(k=>briefing.toLowerCase().includes(k)))bonus+=5;
+  score+=bonus;score=Math.max(0,score);
+  gameState.score=score;gameState.hits=hits;gameState.misses=misses;gameState.bonus=bonus;
+  goToPhase(5);
+}
+
+function showResult(){
+  document.getElementById('phase-result').style.display='block';
+  const t=T[lang];
+  setText('final-score-num',gameState.score);
+  setText('m-hits',gameState.hits);
+  setText('m-misses',gameState.misses);
+  setText('m-bonus','+'+gameState.bonus);
+  setText('result-title',t.resultTitle);
+  setText('result-sub',t.resultSub);
+  setText('lbl-feedback',t.feedbackLabel);
+  setText('lbl-after',t.afterLabel);
+  setText('btn-again',t.btnAgain);
+  setText('btn-home',t.btnHome);
+  setText('ai-feedback-text',(lang==='pt'?FEEDBACK_PT:FEEDBACK_EN)[gameState.level]);
+  const aaList=document.getElementById('after-action-list');
+  aaList.innerHTML='';
+  gameState.incidents.forEach(inc=>{
+    const wasIncluded=inc.included;
+    const correct=(wasIncluded&&inc.real)||(!wasIncluded&&!inc.real);
+    const p=document.createElement('p');
+    p.style.cssText='margin-bottom:6px;font-size:13px;color:'+(correct?'var(--green-text)':'var(--red-text)')+';';
+    const action=wasIncluded?t.included:t.excluded;
+    const truth=inc.real?t.wasReal:t.wasNoise;
+    p.textContent=(correct?'✓':'✗')+' '+inc.title+' ('+action+')'+truth;
+    aaList.appendChild(p);
+  });
+}
+
+updateAllText();
+</script>
+</body>
+</html>
